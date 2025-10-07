@@ -1,0 +1,75 @@
+graph TB
+    subgraph "Feature Store Architecture"
+        subgraph "Data Sources"
+            DB[(Databases)]
+            STREAM[Streaming<br/>Data]
+            FILES[Data Files]
+            API[External APIs]
+        end
+        
+        subgraph "Feature Engineering"
+            TRANSFORM[Feature<br/>Transformations]
+            COMPUTE[Feature<br/>Computation]
+            VALIDATE[Feature<br/>Validation]
+        end
+        
+        subgraph "Feature Store Core"
+            REGISTRY[Feature<br/>Registry]
+            OFFLINE[Offline Store<br/>Historical Data]
+            ONLINE[Online Store<br/>Low Latency]
+            METADATA[Metadata<br/>Management]
+        end
+        
+        subgraph "Serving Layer"
+            TRAINING[Training<br/>Dataset API]
+            INFERENCE[Inference<br/>API]
+            BATCH[Batch<br/>Serving]
+        end
+        
+        subgraph "Monitoring & Governance"
+            MONITOR[Feature<br/>Monitoring]
+            LINEAGE[Data<br/>Lineage]
+            QUALITY[Quality<br/>Checks]
+            ACCESS[Access<br/>Control]
+        end
+        
+        subgraph "Consumers"
+            ML[ML Models<br/>Training]
+            REALTIME[Real-time<br/>Predictions]
+            ANALYTICS[Analytics &<br/>Reporting]
+        end
+    end
+    
+    DB --> TRANSFORM
+    STREAM --> TRANSFORM
+    FILES --> TRANSFORM
+    API --> TRANSFORM
+    
+    TRANSFORM --> COMPUTE
+    COMPUTE --> VALIDATE
+    
+    VALIDATE --> REGISTRY
+    VALIDATE --> OFFLINE
+    VALIDATE --> ONLINE
+    
+    REGISTRY --> METADATA
+    
+    OFFLINE --> TRAINING
+    ONLINE --> INFERENCE
+    OFFLINE --> BATCH
+    
+    TRAINING --> ML
+    INFERENCE --> REALTIME
+    BATCH --> ANALYTICS
+    
+    MONITOR -.observes.-> OFFLINE
+    MONITOR -.observes.-> ONLINE
+    LINEAGE -.tracks.-> TRANSFORM
+    QUALITY -.validates.-> VALIDATE
+    ACCESS -.controls.-> INFERENCE
+    
+    style REGISTRY fill:#9C27B0
+    style OFFLINE fill:#2196F3
+    style ONLINE fill:#4CAF50
+    style TRAINING fill:#FF9800
+    style INFERENCE fill:#F44336
