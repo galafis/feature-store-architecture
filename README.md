@@ -320,3 +320,6 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues, enviar p
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
+---
+
+**Autor:** Gabriel Demetrios Lafis  \n**Ano:** 2025
