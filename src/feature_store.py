@@ -1,3 +1,4 @@
+
 """
 Feature Store Architecture - Core Implementation
 Author: Gabriel Demetrios Lafis
@@ -5,6 +6,7 @@ Year: 2025
 
 Este módulo implementa uma Feature Store, um sistema centralizado para armazenamento,
 gerenciamento e servimento de features (características) para modelos de Machine Learning.
+Esta versão inclui armazenamento online (Redis), offline (Parquet) e uma API REST (Flask).
 """
 
 from dataclasses import dataclass, field
@@ -13,6 +15,21 @@ from datetime import datetime, timedelta
 from enum import Enum
 import hashlib
 import json
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import os
+
+# Dependências opcionais (instalar com `pip install redis flask`)
+try:
+    import redis
+except ImportError:
+    redis = None
+
+try:
+    from flask import Flask, jsonify, request
+except ImportError:
+    Flask = None
 
 
 class FeatureType(Enum):
@@ -39,7 +56,7 @@ class FeatureMetadata:
     name: str
     description: str
     feature_type: FeatureType
-    entity: str  # Entidade à qual a feature pertence (ex: "customer", "product")
+    entity: str
     owner: str
     tags: List[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
@@ -53,9 +70,9 @@ class FeatureTransformation:
     """Define uma transformação para calcular a feature"""
     name: str
     description: str
-    source_features: List[str]  # Features de entrada
-    transformation_fn: Optional[Callable] = None  # Função de transformação
-    sql_query: Optional[str] = None  # Query SQL alternativa
+    source_features: List[str]
+    transformation_fn: Optional[Callable] = None
+    sql_query: Optional[str] = None
 
 
 @dataclass
@@ -82,24 +99,19 @@ class Feature:
         self.metadata = metadata
         self.transformation = transformation
         self.validation = validation or FeatureValidation()
-        self._values: Dict[str, Any] = {}  # entity_id -> value
-        self._history: List[Dict[str, Any]] = []
     
-    def compute(self, entity_id: str, source_data: Dict[str, Any]) -> Any:
+    def compute(self, source_data: Dict[str, Any]) -> Any:
         """
         Computa o valor da feature para uma entidade específica.
         """
         if self.transformation and self.transformation.transformation_fn:
             value = self.transformation.transformation_fn(source_data)
         else:
-            # Se não há transformação, assume que o valor vem diretamente dos dados
             value = source_data.get(self.metadata.name)
         
         if not self._validate_value(value):
-            raise ValueError(f"Valor inválido para feature '{self.metadata.name}': {value}")
+            raise ValueError(f"Valor inválido para feature \'{self.metadata.name}\': {value}")
         
-        self._values[entity_id] = value
-        self._log_computation(entity_id, value)
         return value
     
     def _validate_value(self, value: Any) -> bool:
@@ -116,23 +128,6 @@ class Feature:
                 return False
         
         return True
-    
-    def _log_computation(self, entity_id: str, value: Any):
-        """Registra o cálculo da feature"""
-        self._history.append({
-            "entity_id": entity_id,
-            "value": value,
-            "timestamp": datetime.now(),
-            "version": self.metadata.version
-        })
-    
-    def get_value(self, entity_id: str) -> Optional[Any]:
-        """Retorna o valor atual da feature para uma entidade"""
-        return self._values.get(entity_id)
-    
-    def get_history(self, entity_id: str) -> List[Dict[str, Any]]:
-        """Retorna o histórico de valores para uma entidade"""
-        return [h for h in self._history if h["entity_id"] == entity_id]
 
 
 class FeatureGroup:
@@ -151,199 +146,137 @@ class FeatureGroup:
         """Adiciona uma feature ao grupo"""
         if feature.metadata.entity != self.entity:
             raise ValueError(
-                f"Feature entity '{feature.metadata.entity}' não corresponde "
-                f"ao entity do grupo '{self.entity}'"
+                f"Feature entity \'{feature.metadata.entity}\' não corresponde "
+                f"ao entity do grupo \'{self.entity}\'"
             )
         self.features[feature.metadata.name] = feature
     
-    def compute_all(self, entity_id: str, source_data: Dict[str, Any]) -> Dict[str, Any]:
+    def compute_all(self, source_data: Dict[str, Any]) -> Dict[str, Any]:
         """Computa todas as features do grupo para uma entidade"""
         results = {}
         for feature_name, feature in self.features.items():
             try:
-                results[feature_name] = feature.compute(entity_id, source_data)
+                results[feature_name] = feature.compute(source_data)
             except Exception as e:
-                print(f"Erro ao computar feature '{feature_name}': {e}")
+                print(f"Erro ao computar feature \'{feature_name}\': {e}")
                 results[feature_name] = None
         return results
-    
-    def get_feature_vector(self, entity_id: str) -> Dict[str, Any]:
-        """Retorna o vetor de features para uma entidade"""
-        return {
-            feature_name: feature.get_value(entity_id)
-            for feature_name, feature in self.features.items()
-        }
 
 
 class FeatureStore:
     """
     Feature Store - Sistema centralizado para gerenciamento de features.
-    
-    Funcionalidades:
-    1. Registro e versionamento de features
-    2. Computação e armazenamento de features
-    3. Servimento de features para treinamento e inferência
-    4. Monitoramento e observabilidade
     """
     
-    def __init__(self, name: str):
+    def __init__(self, name: str, redis_host: str = 'localhost', redis_port: int = 6379, offline_store_path: str = './offline_store'):
         self.name = name
-        self.features: Dict[str, Feature] = {}
         self.feature_groups: Dict[str, FeatureGroup] = {}
-        self._registry: Dict[str, Dict[str, Any]] = {}
         self.created_at = datetime.now()
-    
-    def register_feature(self, feature: Feature) -> bool:
-        """Registra uma nova feature na Feature Store"""
-        feature_id = self._generate_feature_id(feature)
-        
-        if feature_id in self.features:
-            print(f"⚠ Feature '{feature.metadata.name}' já está registrada")
-            return False
-        
-        self.features[feature_id] = feature
-        self._registry[feature_id] = {
-            "metadata": feature.metadata,
-            "registered_at": datetime.now()
-        }
-        
-        print(f"✓ Feature '{feature.metadata.name}' registrada com sucesso")
-        return True
+
+        if redis:
+            self.online_store = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True)
+        else:
+            self.online_store = None
+            print("Aviso: Redis não está instalado. O armazenamento online estará desativado.")
+
+        self.offline_store_path = offline_store_path
+        os.makedirs(self.offline_store_path, exist_ok=True)
     
     def register_feature_group(self, feature_group: FeatureGroup) -> bool:
         """Registra um grupo de features"""
         if feature_group.name in self.feature_groups:
-            print(f"⚠ Feature Group '{feature_group.name}' já está registrado")
+            print(f"⚠ Feature Group \'{feature_group.name}\' já está registrado")
             return False
         
         self.feature_groups[feature_group.name] = feature_group
-        
-        # Registrar todas as features do grupo
-        for feature in feature_group.features.values():
-            self.register_feature(feature)
-        
-        print(f"✓ Feature Group '{feature_group.name}' registrado com sucesso")
+        print(f"✓ Feature Group \'{feature_group.name}\' registrado com sucesso")
         return True
-    
-    def _generate_feature_id(self, feature: Feature) -> str:
-        """Gera um ID único para a feature"""
-        unique_string = f"{feature.metadata.name}:{feature.metadata.entity}:{feature.metadata.version}"
-        return hashlib.md5(unique_string.encode()).hexdigest()[:16]
-    
-    def get_feature(self, feature_name: str, entity: str) -> Optional[Feature]:
-        """Busca uma feature pelo nome e entidade"""
-        for feature_id, feature in self.features.items():
-            if (feature.metadata.name == feature_name and 
-                feature.metadata.entity == entity):
-                return feature
-        return None
-    
-    def get_feature_group(self, group_name: str) -> Optional[FeatureGroup]:
-        """Busca um grupo de features pelo nome"""
-        return self.feature_groups.get(group_name)
-    
-    def get_online_features(
-        self,
-        entity_id: str,
-        feature_names: List[str],
-        entity: str
-    ) -> Dict[str, Any]:
-        """
-        Retorna features para inferência online (baixa latência).
-        """
-        results = {}
-        for feature_name in feature_names:
-            feature = self.get_feature(feature_name, entity)
-            if feature:
-                results[feature_name] = feature.get_value(entity_id)
-            else:
-                results[feature_name] = None
-        return results
-    
-    def get_historical_features(
-        self,
-        entity_ids: List[str],
-        feature_names: List[str],
-        entity: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Retorna features históricas para treinamento de modelos.
-        """
-        results = []
-        for entity_id in entity_ids:
-            entity_features = {"entity_id": entity_id}
-            for feature_name in feature_names:
-                feature = self.get_feature(feature_name, entity)
-                if feature:
-                    history = feature.get_history(entity_id)
-                    # Filtrar por data se especificado
-                    if start_date or end_date:
-                        history = [
-                            h for h in history
-                            if (not start_date or h["timestamp"] >= start_date) and
-                               (not end_date or h["timestamp"] <= end_date)
-                        ]
-                    entity_features[feature_name] = history
-            results.append(entity_features)
-        return results
-    
-    def list_features(self, entity: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Lista todas as features registradas"""
-        features_list = []
-        for feature_id, feature in self.features.items():
-            if entity is None or feature.metadata.entity == entity:
-                features_list.append({
-                    "id": feature_id,
-                    "name": feature.metadata.name,
-                    "entity": feature.metadata.entity,
-                    "type": feature.metadata.feature_type.value,
-                    "status": feature.metadata.status.value,
-                    "version": feature.metadata.version,
-                    "owner": feature.metadata.owner
-                })
-        return features_list
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Retorna estatísticas da Feature Store"""
-        return {
-            "total_features": len(self.features),
-            "total_feature_groups": len(self.feature_groups),
-            "features_by_entity": self._count_by_entity(),
-            "features_by_status": self._count_by_status(),
-            "features_by_type": self._count_by_type()
-        }
-    
-    def _count_by_entity(self) -> Dict[str, int]:
-        """Conta features por entidade"""
-        counts = {}
-        for feature in self.features.values():
-            entity = feature.metadata.entity
-            counts[entity] = counts.get(entity, 0) + 1
-        return counts
-    
-    def _count_by_status(self) -> Dict[str, int]:
-        """Conta features por status"""
-        counts = {}
-        for feature in self.features.values():
-            status = feature.metadata.status.value
-            counts[status] = counts.get(status, 0) + 1
-        return counts
-    
-    def _count_by_type(self) -> Dict[str, int]:
-        """Conta features por tipo"""
-        counts = {}
-        for feature in self.features.values():
-            ftype = feature.metadata.feature_type.value
-            counts[ftype] = counts.get(ftype, 0) + 1
-        return counts
+
+    def ingest_data(self, group_name: str, entity_id: str, source_data: Dict[str, Any], timestamp: datetime):
+        """Ingere dados, computa features e armazena nos armazenamentos online e offline."""
+        feature_group = self.feature_groups.get(group_name)
+        if not feature_group:
+            raise ValueError(f"Feature Group \'{group_name}\' não encontrado.")
+
+        computed_features = feature_group.compute_all(source_data)
+        computed_features["entity_id"] = entity_id
+        computed_features["timestamp"] = timestamp.isoformat()
+
+        # Armazenamento Online (Redis)
+        if self.online_store:
+            online_key = f"{group_name}:{entity_id}"
+            self.online_store.hmset(online_key, computed_features)
+
+        # Armazenamento Offline (Parquet)
+        df = pd.DataFrame([computed_features])
+        table = pa.Table.from_pandas(df)
+        
+        partition_cols = ["date"]
+        df["date"] = timestamp.strftime("%Y-%m-%d")
+        
+        pq.write_to_dataset(
+            table,
+            root_path=os.path.join(self.offline_store_path, group_name),
+            partition_cols=partition_cols
+        )
+
+    def get_online_features(self, group_name: str, entity_id: str) -> Optional[Dict[str, Any]]:
+        """Retorna features para inferência online (baixa latência)."""
+        if not self.online_store:
+            print("Erro: Armazenamento online (Redis) não está disponível.")
+            return None
+
+        online_key = f"{group_name}:{entity_id}"
+        return self.online_store.hgetall(online_key)
+
+    def get_historical_features(self, group_name: str, start_date: datetime, end_date: datetime) -> Optional[pd.DataFrame]:
+        """Retorna features históricas para treinamento de modelos."""
+        group_path = os.path.join(self.offline_store_path, group_name)
+        if not os.path.exists(group_path):
+            return None
+
+        try:
+            dataset = pq.ParquetDataset(group_path, filters=[
+                ("date", ">=", start_date.strftime("%Y-%m-%d")),
+                ("date", "<=", end_date.strftime("%Y-%m-%d"))
+            ])
+            return dataset.read().to_pandas()
+        except Exception as e:
+            print(f"Erro ao ler dados históricos: {e}")
+            return None
+
+    def create_flask_app(self):
+        """Cria e retorna uma instância da aplicação Flask para a API REST."""
+        if not Flask:
+            raise ImportError("Flask não está instalado. Execute `pip install Flask`.")
+
+        app = Flask(__name__)
+
+        @app.route('/features/<group_name>/<entity_id>', methods=['GET'])
+        def get_features(group_name, entity_id):
+            features = self.get_online_features(group_name, entity_id)
+            if features:
+                return jsonify(features)
+            return jsonify({"error": "Features não encontradas"}), 404
+
+        @app.route('/ingest/<group_name>/<entity_id>', methods=['POST'])
+        def ingest(group_name, entity_id):
+            data = request.json
+            if not data:
+                return jsonify({"error": "Dados não fornecidos"}), 400
+            
+            try:
+                self.ingest_data(group_name, entity_id, data, datetime.now())
+                return jsonify({"status": "success"}), 201
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        return app
 
 
 def example_usage():
-    """Exemplo de uso da Feature Store"""
+    """Exemplo de uso da Feature Store com armazenamento online e offline."""
     
-    # Criar Feature Store
     fs = FeatureStore(name="production-feature-store")
     
     # Criar um Feature Group para clientes
@@ -354,110 +287,52 @@ def example_usage():
     )
     
     # Definir features
-    # Feature 1: Total de compras
     total_purchases_feature = Feature(
-        metadata=FeatureMetadata(
-            name="total_purchases",
-            description="Número total de compras do cliente",
-            feature_type=FeatureType.NUMERICAL,
-            entity="customer",
-            owner="data-team@company.com",
-            tags=["customer", "purchases"],
-            status=FeatureStatus.ACTIVE
-        ),
-        validation=FeatureValidation(min_value=0)
+        metadata=FeatureMetadata(name="total_purchases", description="Número total de compras", feature_type=FeatureType.NUMERICAL, entity="customer", owner="sales-team")
     )
-    
-    # Feature 2: Valor médio de compra
     avg_purchase_value_feature = Feature(
-        metadata=FeatureMetadata(
-            name="avg_purchase_value",
-            description="Valor médio das compras do cliente",
-            feature_type=FeatureType.NUMERICAL,
-            entity="customer",
-            owner="data-team@company.com",
-            tags=["customer", "purchases", "value"],
-            status=FeatureStatus.ACTIVE
-        ),
+        metadata=FeatureMetadata(name="avg_purchase_value", description="Valor médio de compra", feature_type=FeatureType.NUMERICAL, entity="customer", owner="sales-team"),
         transformation=FeatureTransformation(
             name="calculate_avg_purchase",
             description="Calcula a média de valor das compras",
-            source_features=["total_purchases", "total_spent"],
+            source_features=["total_spent", "total_purchases"],
             transformation_fn=lambda data: data["total_spent"] / data["total_purchases"] if data["total_purchases"] > 0 else 0
-        ),
-        validation=FeatureValidation(min_value=0)
-    )
-    
-    # Feature 3: Segmento do cliente
-    customer_segment_feature = Feature(
-        metadata=FeatureMetadata(
-            name="customer_segment",
-            description="Segmento do cliente baseado em comportamento",
-            feature_type=FeatureType.CATEGORICAL,
-            entity="customer",
-            owner="data-team@company.com",
-            tags=["customer", "segment"],
-            status=FeatureStatus.ACTIVE
-        ),
-        validation=FeatureValidation(
-            allowed_values=["bronze", "silver", "gold", "platinum"]
         )
     )
     
-    # Adicionar features ao grupo
     customer_fg.add_feature(total_purchases_feature)
     customer_fg.add_feature(avg_purchase_value_feature)
-    customer_fg.add_feature(customer_segment_feature)
-    
-    # Registrar o Feature Group
     fs.register_feature_group(customer_fg)
     
-    # Computar features para clientes
-    print("\n📊 Computando features para clientes:")
-    customers_data = [
-        {
-            "customer_id": "CUST001",
-            "total_purchases": 15,
-            "total_spent": 1500.00,
-            "customer_segment": "gold"
-        },
-        {
-            "customer_id": "CUST002",
-            "total_purchases": 5,
-            "total_spent": 250.00,
-            "customer_segment": "silver"
-        }
-    ]
-    
-    for customer_data in customers_data:
-        customer_id = customer_data["customer_id"]
-        features = customer_fg.compute_all(customer_id, customer_data)
-        print(f"  Cliente {customer_id}: {features}")
-    
-    # Buscar features online (inferência)
-    print("\n🔍 Buscando features online para CUST001:")
-    online_features = fs.get_online_features(
-        entity_id="CUST001",
-        feature_names=["total_purchases", "avg_purchase_value", "customer_segment"],
-        entity="customer"
-    )
-    print(f"  {online_features}")
-    
-    # Listar features
-    print("\n📋 Features registradas:")
-    features_list = fs.list_features()
-    for feature in features_list:
-        print(f"  - {feature['name']} ({feature['type']}) - {feature['status']}")
-    
-    # Estatísticas
-    print("\n📈 Estatísticas da Feature Store:")
-    stats = fs.get_statistics()
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
+    # Ingerir dados
+    print("\n--- Ingerindo dados ---")
+    customer_data = {
+        "CUST001": {"total_spent": 1500.00, "total_purchases": 15},
+        "CUST002": {"total_spent": 250.00, "total_purchases": 5}
+    }
+    for cust_id, data in customer_data.items():
+        fs.ingest_data("customer_features", cust_id, data, datetime.now())
+        print(f"Dados ingeridos para {cust_id}")
 
+    # Obter features online
+    print("\n--- Obtendo features online ---")
+    online_features = fs.get_online_features("customer_features", "CUST001")
+    print(f"Features online para CUST001: {online_features}")
+
+    # Obter features históricas
+    print("\n--- Obtendo features históricas ---")
+    historical_features = fs.get_historical_features("customer_features", datetime.now() - timedelta(days=1), datetime.now())
+    if historical_features is not None:
+        print("Features históricas:")
+        print(historical_features)
+
+    # Iniciar a API REST (exemplo)
+    print("\n--- Iniciando API REST em http://127.0.0.1:5000 ---")
+    print("Para testar, use: curl http://127.0.0.1:5000/features/customer_features/CUST001")
+    app = fs.create_flask_app()
+    # Para executar em um ambiente de produção, use um servidor WSGI como Gunicorn ou uWSGI.
+    # app.run(debug=True) # Descomente para rodar a API
 
 if __name__ == "__main__":
-    print("=" * 80)
-    print("Feature Store Architecture - Example Usage")
-    print("=" * 80)
     example_usage()
+
