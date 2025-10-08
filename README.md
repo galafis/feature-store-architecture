@@ -1,9 +1,13 @@
 # Feature Store Architecture
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-2.0%2B-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-1.24%2B-013243?style=for-the-badge&logo=numpy&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-2.3.x-black?style=for-the-badge&logo=flask&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7.x-red?style=for-the-badge&logo=redis&logoColor=white)
 ![Parquet](https://img.shields.io/badge/Format-Parquet-orange?style=for-the-badge&logo=apacheparquet&logoColor=white)
+![Pytest](https://img.shields.io/badge/Testing-Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
+![ML](https://img.shields.io/badge/ML-Feature%20Store-purple?style=for-the-badge)
 ![Mermaid](https://img.shields.io/badge/Diagrams-Mermaid-orange?style=for-the-badge&logo=mermaid&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
 
@@ -20,6 +24,7 @@ O principal objetivo deste projeto é **fornecer um guia prático e exemplos de 
 ### ✨ Destaques
 
 - **Armazenamento Online e Offline**: Implementação de um Feature Store com suporte a armazenamento online (utilizando **Redis** para baixa latência) e offline (utilizando arquivos **Parquet** para armazenamento histórico e treinamento em lote), garantindo consistência entre os ambientes.
+- **Exemplos com Dados Reais**: Módulo `real_world_examples.py` que gera features realistas para cenários de **e-commerce** (recomendação, churn prediction) e **finanças** (detecção de fraude, credit scoring), com datasets completos em formato Parquet.
 - **Transformações e Validações Avançadas**: Demonstração de como definir e aplicar transformações complexas e regras de validação para features, assegurando a qualidade e a relevância dos dados para os modelos de ML.
 - **API de Serviço de Features (Flask)**: Uma API RESTful construída com **Flask** para servir features em tempo real, permitindo que modelos em produção consultem features com baixa latência para inferência online.
 - **Consistência de Features**: Estratégias para garantir que as features usadas no treinamento sejam idênticas às usadas na inferência, eliminando o *skew* de treinamento/serviço.
