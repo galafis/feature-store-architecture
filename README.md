@@ -27,13 +27,7 @@ O principal objetivo deste projeto é **fornecer um guia prático e exemplos de 
 - **Testes Incluídos**: Módulos de código validados através de testes unitários e de integração, garantindo a robustez e a confiabilidade das soluções.
 - **Abordagem Didática**: Conteúdo apresentado de forma didática, ideal para aprendizado e referência, com explicações claras sobre os conceitos e a aplicação prática.
 
-### 📊 Visualização
 
-![Arquitetura de Feature Store](images/feature_store_architecture.png)
-
-*Diagrama ilustrativo de uma arquitetura de Feature Store, destacando os componentes chave e o fluxo de dados.*
-
----
 
 ## 🇬🇧 Feature Store Architecture
 
