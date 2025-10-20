@@ -1,0 +1,65 @@
+# Redis Configuration for Feature Store
+# Copy this file to redis.conf and adjust as needed
+
+# Bind to localhost only for development
+# For production, configure appropriate network settings
+bind 127.0.0.1
+
+# Default port
+port 6379
+
+# Enable persistence for data durability
+# RDB: Point-in-time snapshots
+save 900 1      # Save if at least 1 key changed in 900 seconds
+save 300 10     # Save if at least 10 keys changed in 300 seconds
+save 60 10000   # Save if at least 10000 keys changed in 60 seconds
+
+# RDB file
+dbfilename feature_store_dump.rdb
+dir ./data/redis
+
+# AOF (Append Only File) for better durability
+appendonly yes
+appendfilename "feature_store_appendonly.aof"
+appendfsync everysec
+
+# Memory management
+maxmemory 2gb
+maxmemory-policy allkeys-lru  # Evict least recently used keys when memory limit is reached
+
+# Logging
+loglevel notice
+logfile /var/log/redis/feature-store.log
+
+# Security
+# requirepass your_secure_password_here
+
+# Enable keyspace notifications for monitoring
+notify-keyspace-events Ex
+
+# Slow log
+slowlog-log-slower-than 10000  # microseconds
+slowlog-max-len 128
+
+# Client output buffer limits
+# client-output-buffer-limit normal 0 0 0
+# client-output-buffer-limit replica 256mb 64mb 60
+# client-output-buffer-limit pubsub 32mb 8mb 60
+
+# TCP backlog
+tcp-backlog 511
+
+# TCP keepalive
+tcp-keepalive 300
+
+# Timeout for idle clients (0 = disabled)
+timeout 0
+
+# Number of databases
+databases 16
+
+# Feature Store uses DB 0 by default
+# You can use different DBs for different environments:
+# DB 0: Production
+# DB 1: Staging
+# DB 2: Development
