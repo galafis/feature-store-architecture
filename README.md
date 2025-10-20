@@ -1,5 +1,6 @@
 # Feature Store Architecture
 
+![Tests](https://github.com/galafis/feature-store-architecture/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Pandas](https://img.shields.io/badge/Pandas-2.0%2B-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-1.24%2B-013243?style=for-the-badge&logo=numpy&logoColor=white)
@@ -136,7 +137,14 @@ feature-store-architecture/
 
 ## 🚀 Getting Started
 
-Para começar, clone o repositório e explore os diretórios `src/` e `docs/` para exemplos detalhados e instruções de uso. Certifique-se de ter as dependências necessárias instaladas e um servidor Redis em execução.
+### 📖 Documentação Completa
+
+Este repositório inclui documentação detalhada para todos os aspectos da Feature Store:
+
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Guia passo a passo para iniciantes
+- **[Architecture Documentation](docs/ARCHITECTURE.md)** - Detalhes da arquitetura e design patterns
+- **[Best Practices](docs/BEST_PRACTICES.md)** - Melhores práticas para produção
+- **[API Reference](src/)** - Documentação das classes e métodos
 
 ### Pré-requisitos
 
@@ -144,18 +152,64 @@ Para começar, clone o repositório e explore os diretórios `src/` e `docs/` pa
 - Docker (opcional, para rodar Redis facilmente)
 - Servidor Redis em execução (pode ser local ou via Docker)
 
-### Instalação
+### Instalação Rápida
 
 ```bash
-git clone https://github.com/GabrielDemetriosLafis/feature-store-architecture.git
+# Clone o repositório
+git clone https://github.com/galafis/feature-store-architecture.git
 cd feature-store-architecture
 
-# Instalar dependências Python
+# Crie um ambiente virtual (recomendado)
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# ou: venv\Scripts\activate  # Windows
+
+# Instale as dependências
 pip install -r requirements.txt
 
-# Iniciar um servidor Redis (exemplo com Docker)
-docker run --name my-redis -p 6379:6379 -d redis/redis-stack-server:latest
+# Inicie o Redis com Docker
+docker run --name feature-store-redis -p 6379:6379 -d redis/redis-stack-server:latest
+
+# Ou instale Redis localmente
+# Ubuntu/Debian: sudo apt-get install redis-server
+# macOS: brew install redis
 ```
+
+### ⚡ Quick Start
+
+```python
+from src.feature_store import FeatureStore, FeatureGroup, FeatureMetadata, FeatureType, FeatureStatus
+
+# Inicializar Feature Store
+fs = FeatureStore(name="my-feature-store")
+
+# Criar e registrar features
+customer_fg = FeatureGroup(
+    name="customer_features",
+    entity="customer",
+    description="Features de clientes",
+    features=[
+        FeatureMetadata(
+            name="total_purchases",
+            description="Total de compras",
+            feature_type=FeatureType.NUMERICAL,
+            entity="customer",
+            owner="analytics@example.com",
+            status=FeatureStatus.ACTIVE
+        )
+    ]
+)
+fs.register_feature_group(customer_fg)
+
+# Ingerir features
+fs.ingest_features("customer_features", "CUST001", {"total_purchases": 10})
+
+# Buscar features online
+features = fs.get_online_features("customer_features", "CUST001")
+print(features)
+```
+
+Para exemplos mais detalhados, veja o [Getting Started Guide](docs/GETTING_STARTED.md).
 
 ### Exemplo de Uso Avançado (Python)
 
@@ -312,6 +366,214 @@ if __name__ == "__main__":
     print("Demonstração Concluída.")
     print("==================================================")
 ```
+
+---
+
+## 🌐 API REST
+
+A Feature Store inclui uma API REST completa para servir features em produção.
+
+### Iniciar o Servidor
+
+```bash
+python src/feature_serving_api.py
+```
+
+Ou usando código:
+
+```python
+from src.feature_serving_api import create_app
+
+app = create_app()
+app.run(host='0.0.0.0', port=5000)
+```
+
+### Endpoints Disponíveis
+
+#### Health Check
+```bash
+curl http://localhost:5000/health
+```
+
+#### Buscar Features Online
+```bash
+curl http://localhost:5000/features/customer_features/CUST001
+# Com filtro de features específicas:
+curl "http://localhost:5000/features/customer_features/CUST001?features=total_purchases,avg_order_value"
+```
+
+#### Ingerir Features
+```bash
+curl -X POST http://localhost:5000/ingest/customer_features/CUST001 \
+  -H "Content-Type: application/json" \
+  -d '{"total_purchases": 15, "avg_order_value": 120.50}'
+```
+
+#### Listar Feature Groups
+```bash
+curl http://localhost:5000/groups
+```
+
+#### Listar Todas as Features
+```bash
+curl http://localhost:5000/features
+```
+
+#### Buscar Metadados de Feature
+```bash
+curl http://localhost:5000/features/customer/total_purchases/metadata
+```
+
+---
+
+## 🎓 Exemplos do Mundo Real
+
+O repositório inclui geradores de dados realistas para cenários comuns de ML:
+
+### E-commerce
+
+```python
+from src.real_world_examples import EcommerceFeatureGenerator
+
+gen = EcommerceFeatureGenerator()
+
+# Gerar features de clientes
+customers = gen.generate_customer_features(num_customers=1000)
+
+# Gerar features de produtos
+products = gen.generate_product_features(num_products=500)
+
+# Gerar interações cliente-produto
+interactions = gen.generate_interaction_features(customers, products, num_interactions=5000)
+```
+
+**Features Incluídas:**
+- Métricas comportamentais (total de compras, valor médio, engajamento)
+- Features demográficas (idade, gênero)
+- Features de risco (probabilidade de churn)
+- Features temporais (tempo desde última compra, tenure)
+
+### Finanças
+
+```python
+from src.real_world_examples import FinancialFeatureGenerator
+
+gen = FinancialFeatureGenerator()
+
+# Gerar features de transações financeiras
+transactions = gen.generate_transaction_features(num_transactions=2000)
+```
+
+**Features Incluídas:**
+- Valores e tipos de transação
+- Features de localização geográfica
+- Features temporais (hora do dia)
+- Scores de fraude calculados
+
+### Executar Todos os Exemplos
+
+```bash
+python src/real_world_examples.py
+```
+
+Isso gerará datasets completos em `data/examples/`:
+- `ecommerce_customers.parquet`
+- `ecommerce_products.parquet`
+- `ecommerce_interactions.parquet`
+- `financial_transactions.parquet`
+
+---
+
+## 🧪 Testes
+
+O projeto inclui uma suíte completa de testes unitários e de integração.
+
+### Executar Todos os Testes
+
+```bash
+pytest tests/ -v
+```
+
+### Executar com Cobertura
+
+```bash
+pytest tests/ -v --cov=src --cov-report=html
+# Abrir htmlcov/index.html no navegador para ver o relatório
+```
+
+### Executar Testes Específicos
+
+```bash
+# Apenas testes unitários
+pytest tests/test_feature_store.py -v
+
+# Apenas testes de integração
+pytest tests/test_integration.py -v
+
+# Teste específico
+pytest tests/test_feature_store.py::TestFeatureStore::test_ingest_data_online_store -v
+```
+
+### CI/CD
+
+Os testes são executados automaticamente via GitHub Actions em cada push e pull request. Veja o badge no topo do README para o status atual.
+
+---
+
+## 📊 Diagramas e Visualizações
+
+### Arquitetura da Feature Store
+
+![Feature Store Architecture](diagrams/feature_store_architecture.png)
+
+*Diagrama completo mostrando todos os componentes e fluxos de dados*
+
+O diagrama em formato Mermaid está disponível em [`diagrams/feature_store_architecture.mmd`](diagrams/feature_store_architecture.mmd) e pode ser visualizado no GitHub ou editado com ferramentas compatíveis com Mermaid.
+
+### Componentes Principais
+
+```mermaid
+graph TB
+    A[Data Sources] --> B[Feature Engineering]
+    B --> C[Feature Store Core]
+    C --> D[Online Store - Redis]
+    C --> E[Offline Store - Parquet]
+    D --> F[Real-time Inference]
+    E --> G[Model Training]
+    
+    style C fill:#9C27B0
+    style D fill:#4CAF50
+    style E fill:#2196F3
+```
+
+---
+
+## 🚀 Roadmap
+
+### Funcionalidades Planejadas
+
+- [ ] **Feature Monitoring Dashboard**: UI para monitorar saúde e uso de features
+- [ ] **Feature Lineage Tracking**: Rastreamento completo de dependências
+- [ ] **Automatic Feature Discovery**: Descoberta automática de features úteis
+- [ ] **Feature Store CLI**: Interface de linha de comando completa
+- [ ] **Multi-cloud Support**: Suporte para AWS, GCP, Azure
+- [ ] **Stream Processing**: Integração com Kafka/Kinesis
+- [ ] **Feature Encryption**: Criptografia de features sensíveis
+- [ ] **A/B Testing Support**: Framework para testar features
+- [ ] **Feature Marketplace**: Compartilhamento de features entre times
+- [ ] **AutoML Integration**: Integração com frameworks de AutoML
+
+### Versões Futuras
+
+**v2.0.0**
+- Feature versioning avançado
+- Feature store federado (múltiplas instâncias)
+- Suporte para features de streaming
+
+**v3.0.0**
+- Feature store como serviço (FaaS)
+- Machine Learning feature lifecycle management
+- Advanced governance e compliance
 
 ---
 

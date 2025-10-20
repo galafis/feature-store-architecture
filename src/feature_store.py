@@ -63,6 +63,8 @@ class FeatureMetadata:
     updated_at: datetime = field(default_factory=datetime.now)
     status: FeatureStatus = FeatureStatus.DRAFT
     version: str = "1.0.0"
+    transformation: Optional['FeatureTransformation'] = None
+    validation: Optional['FeatureValidation'] = None
 
 
 @dataclass
@@ -135,12 +137,27 @@ class FeatureGroup:
     Agrupa features relacionadas que são computadas juntas.
     """
     
-    def __init__(self, name: str, entity: str, description: str):
+    def __init__(self, name: str, entity: str, description: str, features: Optional[List] = None):
         self.name = name
         self.entity = entity
         self.description = description
         self.features: Dict[str, Feature] = {}
         self.created_at = datetime.now()
+        
+        # Adicionar features se fornecidas (suporta tanto Feature quanto FeatureMetadata)
+        if features:
+            for feature in features:
+                if isinstance(feature, FeatureMetadata):
+                    # Criar Feature a partir de FeatureMetadata, extraindo transformation e validation
+                    self.add_feature(Feature(
+                        metadata=feature,
+                        transformation=feature.transformation,
+                        validation=feature.validation
+                    ))
+                elif isinstance(feature, Feature):
+                    self.add_feature(feature)
+                else:
+                    raise TypeError(f"Esperado Feature ou FeatureMetadata, recebido {type(feature)}")
     
     def add_feature(self, feature: Feature):
         """Adiciona uma feature ao grupo"""
@@ -157,6 +174,9 @@ class FeatureGroup:
         for feature_name, feature in self.features.items():
             try:
                 results[feature_name] = feature.compute(source_data)
+            except ValueError as e:
+                # Re-raise validation errors
+                raise ValueError(f"Validation failed for feature {feature_name}: {str(e)}")
             except Exception as e:
                 print(f"Erro ao computar feature \'{feature_name}\': {e}")
                 results[feature_name] = None
@@ -208,11 +228,12 @@ class FeatureStore:
             self.online_store.hmset(online_key, computed_features)
 
         # Armazenamento Offline (Parquet)
+        # Adicionar coluna de data antes de criar a tabela
+        computed_features["date"] = timestamp.strftime("%Y-%m-%d")
         df = pd.DataFrame([computed_features])
         table = pa.Table.from_pandas(df)
         
         partition_cols = ["date"]
-        df["date"] = timestamp.strftime("%Y-%m-%d")
         
         pq.write_to_dataset(
             table,
@@ -244,6 +265,58 @@ class FeatureStore:
         except Exception as e:
             print(f"Erro ao ler dados históricos: {e}")
             return None
+    
+    def ingest_features(self, group_name: str, entity_id: str, source_data: Dict[str, Any]):
+        """
+        Método compatível com o README - ingere features com timestamp automático.
+        Alias para ingest_data com timestamp atual.
+        """
+        timestamp = source_data.get("timestamp")
+        if timestamp:
+            if isinstance(timestamp, str):
+                timestamp = datetime.fromisoformat(timestamp)
+            del source_data["timestamp"]
+        else:
+            timestamp = datetime.now()
+        
+        return self.ingest_data(group_name, entity_id, source_data, timestamp)
+    
+    def get_offline_features(self, group_name: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Optional[pd.DataFrame]:
+        """
+        Retorna features offline para treinamento.
+        Se as datas não forem fornecidas, retorna todos os dados disponíveis.
+        """
+        if start_date is None:
+            start_date = datetime(2000, 1, 1)
+        if end_date is None:
+            end_date = datetime.now() + timedelta(days=1)
+        
+        return self.get_historical_features(group_name, start_date, end_date)
+    
+    def list_features(self) -> List[FeatureMetadata]:
+        """Lista todas as features registradas em todos os grupos."""
+        all_features = []
+        for group in self.feature_groups.values():
+            for feature in group.features.values():
+                all_features.append(feature.metadata)
+        return all_features
+    
+    def get_feature_metadata(self, feature_name: str, entity: str) -> Optional[FeatureMetadata]:
+        """Busca metadados de uma feature específica."""
+        for group in self.feature_groups.values():
+            if group.entity == entity and feature_name in group.features:
+                return group.features[feature_name].metadata
+        return None
+    
+    def deprecate_feature(self, feature_name: str, entity: str):
+        """Marca uma feature como depreciada."""
+        for group in self.feature_groups.values():
+            if group.entity == entity and feature_name in group.features:
+                group.features[feature_name].metadata.status = FeatureStatus.DEPRECATED
+                group.features[feature_name].metadata.updated_at = datetime.now()
+                print(f"✓ Feature '{feature_name}' marcada como DEPRECATED")
+                return
+        print(f"⚠ Feature '{feature_name}' não encontrada para entidade '{entity}'")
 
     def create_flask_app(self):
         """Cria e retorna uma instância da aplicação Flask para a API REST."""
@@ -268,6 +341,8 @@ class FeatureStore:
             try:
                 self.ingest_data(group_name, entity_id, data, datetime.now())
                 return jsonify({"status": "success"}), 201
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 

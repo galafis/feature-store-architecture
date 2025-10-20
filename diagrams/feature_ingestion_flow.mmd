@@ -1,0 +1,36 @@
+sequenceDiagram
+    participant App as Application
+    participant FS as Feature Store
+    participant FG as Feature Group
+    participant Val as Validator
+    participant Trans as Transformer
+    participant Redis as Online Store
+    participant Parquet as Offline Store
+
+    App->>FS: ingest_features(group, entity_id, data)
+    FS->>FG: compute_all(data)
+    
+    loop For each feature
+        FG->>Trans: Apply transformation
+        Trans-->>FG: Transformed value
+        FG->>Val: Validate value
+        alt Valid
+            Val-->>FG: ✓ Pass
+        else Invalid
+            Val-->>FG: ✗ Fail
+            FG-->>FS: Raise ValueError
+            FS-->>App: Error 400
+        end
+    end
+    
+    FG-->>FS: Computed features
+    
+    par Parallel storage
+        FS->>Redis: hmset(key, features)
+        Redis-->>FS: OK
+    and
+        FS->>Parquet: write_to_dataset(features)
+        Parquet-->>FS: OK
+    end
+    
+    FS-->>App: Success 201
