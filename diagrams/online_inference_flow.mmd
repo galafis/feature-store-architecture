@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant Model as ML Model
+    participant API as Feature API
+    participant FS as Feature Store
+    participant Redis as Redis Cache
+    participant App as Application
+
+    Note over Model,App: Real-time Inference Flow
+
+    App->>Model: Prediction request (entity_id)
+    Model->>API: GET /features/{group}/{entity_id}
+    API->>FS: get_online_features(group, entity_id)
+    FS->>Redis: hgetall(group:entity_id)
+    
+    alt Features found
+        Redis-->>FS: {features}
+        FS-->>API: {features}
+        API-->>Model: HTTP 200 + features
+        Model->>Model: Run inference
+        Model-->>App: Prediction result
+    else Features not found
+        Redis-->>FS: {}
+        FS-->>API: None
+        API-->>Model: HTTP 404
+        Model-->>App: Error: Features not available
+    end
+    
+    Note over Model,Redis: Typical latency: 1-5ms

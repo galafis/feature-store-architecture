@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant Scientist as Data Scientist
+    participant FS as Feature Store
+    participant Parquet as Parquet Store
+    participant Spark as Processing Engine
+    participant Train as Training Pipeline
+
+    Note over Scientist,Train: Model Training Flow
+
+    Scientist->>FS: get_offline_features(group, start_date, end_date)
+    FS->>Parquet: Read partitioned data
+    
+    Note over Parquet: Reads only relevant partitions<br/>based on date filters
+    
+    Parquet-->>FS: Dataset
+    FS->>FS: Convert to DataFrame
+    FS-->>Scientist: Historical features DataFrame
+    
+    Scientist->>Scientist: Feature engineering<br/>& exploration
+    
+    Scientist->>Train: Define training pipeline
+    Train->>FS: get_offline_features(groups, date_range)
+    FS->>Parquet: Batch read
+    Parquet-->>FS: Large dataset
+    
+    alt Using Spark for large data
+        FS->>Spark: Load as Spark DataFrame
+        Spark->>Spark: Distributed processing
+        Spark-->>Train: Processed features
+    else Direct Pandas
+        FS-->>Train: Pandas DataFrame
+    end
+    
+    Train->>Train: Train model
+    Train-->>Scientist: Trained model + metrics
+    
+    Note over FS,Parquet: Typical latency: 100ms-10s<br/>depending on data size

@@ -1,0 +1,41 @@
+stateDiagram-v2
+    [*] --> Draft: Create feature
+    
+    Draft --> Active: Validate & Deploy
+    Draft --> [*]: Discard
+    
+    Active --> Deprecated: Mark as deprecated
+    Active --> Active: Update version
+    
+    Deprecated --> Archived: After transition period
+    Deprecated --> Active: Reactivate
+    
+    Archived --> [*]: Delete metadata
+    
+    note right of Draft
+        Status: DRAFT
+        - Feature in development
+        - Not used in production
+        - Can be modified freely
+    end note
+    
+    note right of Active
+        Status: ACTIVE
+        - Feature in production use
+        - Immutable (versioning required)
+        - Monitored and maintained
+    end note
+    
+    note right of Deprecated
+        Status: DEPRECATED
+        - Still available but discouraged
+        - Documentation shows replacement
+        - Transition period (e.g., 90 days)
+    end note
+    
+    note right of Archived
+        Status: ARCHIVED
+        - No longer available
+        - Metadata kept for historical reference
+        - Can be purged after retention period
+    end note
