@@ -30,8 +30,12 @@ from feature_store import (
 
 # Mock Redis para testes
 class MockRedis:
-    def __init__(self):
+    def __init__(self, host='localhost', port=6379, db=0, decode_responses=True, **kwargs):
         self.data = {}
+        self.host = host
+        self.port = port
+        self.db = db
+        self.decode_responses = decode_responses
 
     def hmset(self, key, mapping):
         self.data[key] = {k: str(v) for k, v in mapping.items()} # Redis stores strings
@@ -174,7 +178,10 @@ class TestFeatureStore(unittest.TestCase):
 
     def test_flask_api_get_features(self):
         """Testa o endpoint GET /features/<group_name>/<entity_id> da API Flask"""
-        if not Flask: # Skip if Flask is not installed
+        try:
+            from flask import Flask
+        except ImportError:
+            self.skipTest("Flask not installed")
             return
 
         app = self.fs.create_flask_app()
@@ -194,7 +201,10 @@ class TestFeatureStore(unittest.TestCase):
 
     def test_flask_api_ingest_data(self):
         """Testa o endpoint POST /ingest/<group_name>/<entity_id> da API Flask"""
-        if not Flask: # Skip if Flask is not installed
+        try:
+            from flask import Flask
+        except ImportError:
+            self.skipTest("Flask not installed")
             return
 
         app = self.fs.create_flask_app()
