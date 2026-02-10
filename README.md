@@ -1,6 +1,5 @@
 # Feature Store Architecture
 
-![Tests](https://github.com/galafis/feature-store-architecture/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Pandas](https://img.shields.io/badge/Pandas-2.0%2B-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-1.24%2B-013243?style=for-the-badge&logo=numpy&logoColor=white)
