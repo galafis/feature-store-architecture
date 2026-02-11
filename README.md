@@ -513,10 +513,6 @@ pytest tests/test_integration.py -v
 pytest tests/test_feature_store.py::TestFeatureStore::test_ingest_data_online_store -v
 ```
 
-### CI/CD
-
-Os testes são executados automaticamente via GitHub Actions em cada push e pull request. Veja o badge no topo do README para o status atual.
-
 ---
 
 ## 📊 Diagramas e Visualizações
