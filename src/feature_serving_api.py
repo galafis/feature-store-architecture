@@ -7,9 +7,14 @@ API RESTful construída com Flask para servir features em tempo real.
 """
 
 from flask import Flask, jsonify, request
+import sys
+import os
+
+# Ensure the src directory is on the path for imports
+sys.path.insert(0, os.path.dirname(__file__))
+
 from feature_store import FeatureStore
 from datetime import datetime
-import os
 
 # Configuração da Feature Store
 REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')

@@ -545,30 +545,12 @@ graph TB
 
 ## 🚀 Roadmap
 
-### Funcionalidades Planejadas
-
-- [ ] **Feature Monitoring Dashboard**: UI para monitorar saúde e uso de features
-- [ ] **Feature Lineage Tracking**: Rastreamento completo de dependências
-- [ ] **Automatic Feature Discovery**: Descoberta automática de features úteis
-- [ ] **Feature Store CLI**: Interface de linha de comando completa
-- [ ] **Multi-cloud Support**: Suporte para AWS, GCP, Azure
-- [ ] **Stream Processing**: Integração com Kafka/Kinesis
-- [ ] **Feature Encryption**: Criptografia de features sensíveis
-- [ ] **A/B Testing Support**: Framework para testar features
-- [ ] **Feature Marketplace**: Compartilhamento de features entre times
-- [ ] **AutoML Integration**: Integração com frameworks de AutoML
-
-### Versões Futuras
-
-**v2.0.0**
-- Feature versioning avançado
-- Feature store federado (múltiplas instâncias)
-- Suporte para features de streaming
-
-**v3.0.0**
-- Feature store como serviço (FaaS)
-- Machine Learning feature lifecycle management
-- Advanced governance e compliance
+- [ ] Feature monitoring dashboard
+- [ ] Feature lineage tracking
+- [ ] CLI tool for feature management
+- [ ] Stream processing integration (Kafka)
+- [ ] Additional storage backends (S3, DynamoDB)
+- [ ] Improve test coverage
 
 ---
 

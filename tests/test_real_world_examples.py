@@ -41,9 +41,9 @@ class TestEcommerceFeatureGenerator(unittest.TestCase):
             self.assertIn(col, df.columns)
         
         # Verificar tipos de dados
-        self.assertTrue(df['age'].dtype in [int, 'int64'])
-        self.assertTrue(df['total_purchases'].dtype in [int, 'int64'])
-        self.assertTrue(df['total_spent'].dtype in [float, 'float64'])
+        self.assertTrue(pd.api.types.is_integer_dtype(df['age']))
+        self.assertTrue(pd.api.types.is_integer_dtype(df['total_purchases']))
+        self.assertTrue(pd.api.types.is_float_dtype(df['total_spent']))
         
         # Verificar ranges válidos
         self.assertTrue((df['age'] >= 18).all())
@@ -161,9 +161,9 @@ class TestFinancialFeatureGenerator(unittest.TestCase):
             self.assertIn(col, df.columns)
         
         # Verificar tipos de dados
-        self.assertTrue(df['amount'].dtype in [float, 'float64'])
-        self.assertTrue(df['is_international'].dtype in [int, 'int64'])
-        self.assertTrue(df['fraud_score'].dtype in [float, 'float64'])
+        self.assertTrue(pd.api.types.is_float_dtype(df['amount']))
+        self.assertTrue(pd.api.types.is_integer_dtype(df['is_international']))
+        self.assertTrue(pd.api.types.is_float_dtype(df['fraud_score']))
         
         # Verificar ranges válidos
         self.assertTrue((df['amount'] >= 1).all())

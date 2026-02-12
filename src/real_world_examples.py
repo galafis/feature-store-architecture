@@ -340,7 +340,7 @@ def demonstrate_feature_engineering():
     print("Salvando datasets de exemplo")
     print("-" * 40)
     
-    output_dir = "../data/examples"
+    output_dir = os.path.join(os.path.dirname(__file__), "..", "data", "examples")
     os.makedirs(output_dir, exist_ok=True)
     
     customers_df.to_parquet(f"{output_dir}/ecommerce_customers.parquet", index=False)

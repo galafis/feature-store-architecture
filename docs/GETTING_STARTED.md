@@ -315,10 +315,9 @@ fs = FeatureStore(name="my-fs", offline_store_path="~/feature-store-data")
 
 ## 📚 Próximos Passos
 
-1. Explore o [Tutorial Avançado](ADVANCED_TUTORIAL.md)
-2. Leia sobre [Arquitetura e Design Patterns](ARCHITECTURE.md)
-3. Veja [Exemplos de Uso em Produção](PRODUCTION_EXAMPLES.md)
-4. Aprenda sobre [Best Practices](BEST_PRACTICES.md)
+1. Leia sobre [Arquitetura e Design Patterns](ARCHITECTURE.md)
+2. Veja [Best Practices](BEST_PRACTICES.md)
+3. Explore os [Exemplos práticos](../examples/)
 
 ## 💡 Dicas
 
