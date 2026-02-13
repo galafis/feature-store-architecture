@@ -10,8 +10,6 @@ baseados em cenários comuns de ML (e-commerce, finanças, recomendação).
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
-import json
 import os
 
 
