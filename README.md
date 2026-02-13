@@ -1,338 +1,258 @@
-# 🚀 Feature Store Architecture
+# Feature Store Architecture
 
-> Production-grade feature store for ML pipelines. Manages feature computation, storage, serving, and versioning for consistent model training and online inference.
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.3+-000000.svg)](https://flask.palletsprojects.com/)
+[![Redis](https://img.shields.io/badge/Redis-4.5+-DC382D.svg)](https://redis.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg)](https://img.shields.io/badge/)
-[![Flask](https://img.shields.io/badge/Flask-3.0-000000.svg)](https://img.shields.io/badge/)
-[![NumPy](https://img.shields.io/badge/NumPy-1.26-013243.svg)](https://img.shields.io/badge/)
-[![Pandas](https://img.shields.io/badge/Pandas-2.2-150458.svg)](https://img.shields.io/badge/)
-[![Redis](https://img.shields.io/badge/Redis-7-DC382D.svg)](https://img.shields.io/badge/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[English](#english) | [Portugues](#portugues)
 
-[English](#english) | [Português](#português)
+---
+
+## Portugues
+
+### Visao Geral
+
+Feature Store para pipelines de Machine Learning. Gerencia a computacao, armazenamento e servimento de features com armazenamento online (Redis) para inferencia de baixa latencia e armazenamento offline (Parquet) para treinamento de modelos. Inclui API REST (Flask) e geradores de dados de exemplo para e-commerce e financas.
+
+### Arquitetura
+
+```mermaid
+graph TB
+    subgraph API["API REST - Flask"]
+        SERVE[feature_serving_api.py<br/>Endpoints REST]
+    end
+
+    subgraph Core["Feature Store Core"]
+        FS[FeatureStore<br/>Gerenciador central]
+        FG[FeatureGroup<br/>Agrupamento de features]
+        FT[Feature<br/>Computacao + Validacao]
+    end
+
+    subgraph Storage["Armazenamento"]
+        REDIS[(Redis<br/>Online Store)]
+        PARQUET[(Parquet<br/>Offline Store)]
+    end
+
+    subgraph Examples["Geradores de Dados"]
+        ECOM[EcommerceFeatureGenerator]
+        FIN[FinancialFeatureGenerator]
+    end
+
+    SERVE --> FS
+    FS --> FG
+    FG --> FT
+    FS --> REDIS
+    FS --> PARQUET
+    ECOM --> FS
+    FIN --> FS
+
+    style API fill:#e1f5fe
+    style Core fill:#fff3e0
+    style Storage fill:#e8f5e9
+    style Examples fill:#f3e5f5
+```
+
+### Funcionalidades
+
+- **Armazenamento Online**: Redis para servir features com baixa latencia em inferencia
+- **Armazenamento Offline**: Parquet particionado por data para treinamento de modelos
+- **API REST**: Endpoints Flask para ingestao, consulta e listagem de features e grupos
+- **Computacao de Features**: Pipeline de transformacao com funcoes customizaveis e validacao
+- **Metadados**: Controle de tipo, status (draft/active/deprecated/archived), versao e owner
+- **Geradores de Exemplo**: Dados sinteticos de e-commerce (clientes, produtos, interacoes) e financas (transacoes com fraud score)
+
+### Estrutura do Projeto
+
+```
+feature-store-architecture/
+├── src/
+│   ├── __init__.py
+│   ├── feature_store.py          # Core: FeatureStore, Feature, FeatureGroup, dataclasses
+│   ├── feature_serving_api.py    # API REST Flask
+│   └── real_world_examples.py    # Geradores de dados (e-commerce, financas)
+├── tests/
+│   ├── test_feature_store.py     # Testes unitarios do core
+│   ├── test_api.py               # Testes da API REST
+│   ├── test_integration.py       # Testes de integracao
+│   └── test_real_world_examples.py
+├── examples/
+│   ├── basic_usage.py            # Exemplo basico
+│   ├── advanced_transformations.py
+│   └── api_usage.py              # Exemplo de uso da API
+├── diagrams/                     # Diagramas Mermaid (.mmd)
+├── requirements.txt
+├── LICENSE
+└── README.md
+```
+
+### Como Executar
+
+```bash
+# Clonar o repositorio
+git clone https://github.com/galafis/feature-store-architecture.git
+cd feature-store-architecture
+
+# Criar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Executar exemplo basico (gera dados sinteticos, nao precisa de Redis)
+python -m src.feature_store
+
+# Executar geradores de dados de exemplo
+python -m src.real_world_examples
+
+# Iniciar API REST (requer Redis rodando)
+python -m src.feature_serving_api
+```
+
+### Testes
+
+```bash
+python -m pytest tests/ -v
+```
+
+### Tecnologias
+
+| Tecnologia | Uso |
+|------------|-----|
+| Python | Linguagem principal |
+| Redis | Armazenamento online (key-value) |
+| PyArrow / Parquet | Armazenamento offline particionado |
+| Flask | API REST |
+| pandas / NumPy | Processamento de dados |
 
 ---
 
 ## English
 
-### 🎯 Overview
+### Overview
 
-**Feature Store Architecture** is a production-grade Python application that showcases modern software engineering practices including clean architecture, comprehensive testing, containerized deployment, and CI/CD readiness.
+Feature Store for Machine Learning pipelines. Manages feature computation, storage and serving with an online store (Redis) for low-latency inference and an offline store (Parquet) for model training. Includes a Flask REST API and example data generators for e-commerce and finance use cases.
 
-The codebase comprises **2,583 lines** of source code organized across **11 modules**, following industry best practices for maintainability, scalability, and code quality.
-
-### ✨ Key Features
-
-- **🏗️ Object-Oriented**: 16 core classes with clean architecture
-- **📐 Clean Architecture**: Modular design with clear separation of concerns
-- **🧪 Test Coverage**: Unit and integration tests for reliability
-- **📚 Documentation**: Comprehensive inline documentation and examples
-- **🔧 Configuration**: Environment-based configuration management
-
-### 🏗️ Architecture
+### Architecture
 
 ```mermaid
 graph TB
-    subgraph Client["🖥️ Client Layer"]
-        A[Web Client]
-        B[API Documentation]
+    subgraph API["REST API - Flask"]
+        SERVE[feature_serving_api.py<br/>REST Endpoints]
     end
-    
-    subgraph API["⚡ API Layer"]
-        C[Middleware Pipeline]
-        D[Route Handlers]
-        E[Business Logic]
+
+    subgraph Core["Feature Store Core"]
+        FS[FeatureStore<br/>Central manager]
+        FG[FeatureGroup<br/>Feature grouping]
+        FT[Feature<br/>Computation + Validation]
     end
-    
-    subgraph Data["💾 Data Layer"]
-        F[(Primary Database)]
-        G[Cache]
+
+    subgraph Storage["Storage"]
+        REDIS[(Redis<br/>Online Store)]
+        PARQUET[(Parquet<br/>Offline Store)]
     end
-    
-    A --> C
-    B --> C
-    C --> D --> E
-    E --> F
-    E --> G
-    
-    style Client fill:#e1f5fe
-    style API fill:#f3e5f5
-    style Data fill:#fff3e0
+
+    subgraph Examples["Data Generators"]
+        ECOM[EcommerceFeatureGenerator]
+        FIN[FinancialFeatureGenerator]
+    end
+
+    SERVE --> FS
+    FS --> FG
+    FG --> FT
+    FS --> REDIS
+    FS --> PARQUET
+    ECOM --> FS
+    FIN --> FS
+
+    style API fill:#e1f5fe
+    style Core fill:#fff3e0
+    style Storage fill:#e8f5e9
+    style Examples fill:#f3e5f5
 ```
 
-```mermaid
-classDiagram
-    class FinancialFeatureGenerator
-    class FeatureStatus
-    class FeatureTransformation
-    class FeatureMetadata
-    class FeatureType
-    class MockRedis
-    class FeatureStore
-    class FeatureGroup
-    class FeatureValidation
-    class EcommerceFeatureGenerator
+### Features
+
+- **Online Store**: Redis for low-latency feature serving during inference
+- **Offline Store**: Date-partitioned Parquet files for model training
+- **REST API**: Flask endpoints for feature ingestion, retrieval and listing
+- **Feature Computation**: Transformation pipeline with custom functions and validation rules
+- **Metadata**: Type control, status lifecycle (draft/active/deprecated/archived), versioning and ownership
+- **Example Generators**: Synthetic data for e-commerce (customers, products, interactions) and finance (transactions with fraud scores)
+
+### Project Structure
+
+```
+feature-store-architecture/
+├── src/
+│   ├── __init__.py
+│   ├── feature_store.py          # Core: FeatureStore, Feature, FeatureGroup, dataclasses
+│   ├── feature_serving_api.py    # Flask REST API
+│   └── real_world_examples.py    # Data generators (e-commerce, finance)
+├── tests/
+│   ├── test_feature_store.py     # Core unit tests
+│   ├── test_api.py               # REST API tests
+│   ├── test_integration.py       # Integration tests
+│   └── test_real_world_examples.py
+├── examples/
+│   ├── basic_usage.py            # Basic usage example
+│   ├── advanced_transformations.py
+│   └── api_usage.py              # API usage example
+├── diagrams/                     # Mermaid diagrams (.mmd)
+├── requirements.txt
+├── LICENSE
+└── README.md
 ```
 
-### 🚀 Quick Start
-
-#### Prerequisites
-
-- Python 3.12+
-- pip (Python package manager)
-
-#### Installation
+### How to Run
 
 ```bash
 # Clone the repository
 git clone https://github.com/galafis/feature-store-architecture.git
 cd feature-store-architecture
 
-# Create and activate virtual environment
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Run basic example (generates synthetic data, no Redis needed)
+python -m src.feature_store
+
+# Run example data generators
+python -m src.real_world_examples
+
+# Start REST API (requires Redis running)
+python -m src.feature_serving_api
 ```
 
-#### Running
+### Tests
 
 ```bash
-# Run the application
-python src/main.py
+python -m pytest tests/ -v
 ```
 
-### 🧪 Testing
+### Technologies
 
-```bash
-# Run all tests
-pytest
-
-# Run with coverage report
-pytest --cov --cov-report=html
-
-# Run specific test module
-pytest tests/test_main.py -v
-
-# Run with detailed output
-pytest -v --tb=short
-```
-
-### 📁 Project Structure
-
-```
-feature-store-architecture/
-├── config/        # Configuration
-├── data/
-│   └── examples/
-├── diagrams/
-├── docs/          # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── BEST_PRACTICES.md
-│   ├── GETTING_STARTED.md
-│   └── QUICK_REFERENCE.md
-├── examples/
-│   ├── README.md
-│   ├── advanced_transformations.py
-│   ├── api_usage.py
-│   └── basic_usage.py
-├── images/
-├── src/          # Source code
-│   ├── __init__.py
-│   ├── feature_serving_api.py
-│   ├── feature_store.py
-│   └── real_world_examples.py
-├── tests/         # Test suite
-│   ├── test_api.py
-│   ├── test_feature_store.py
-│   ├── test_integration.py
-│   └── test_real_world_examples.py
-├── CHANGELOG.md
-├── LICENSE
-├── README.md
-└── requirements.txt
-```
-
-### 🛠️ Tech Stack
-
-| Technology | Description | Role |
-|------------|-------------|------|
-| **Python** | Core Language | Primary |
-| **Flask** | Lightweight web framework | Framework |
-| **NumPy** | Numerical computing | Framework |
-| **Pandas** | Data manipulation library | Framework |
-| **Redis** | In-memory data store | Framework |
-
-### 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-### 👤 Author
-
-**Gabriel Demetrios Lafis**
-- GitHub: [@galafis](https://github.com/galafis)
-- LinkedIn: [Gabriel Demetrios Lafis](https://linkedin.com/in/gabriel-demetrios-lafis)
+| Technology | Usage |
+|------------|-------|
+| Python | Primary language |
+| Redis | Online store (key-value) |
+| PyArrow / Parquet | Partitioned offline store |
+| Flask | REST API |
+| pandas / NumPy | Data processing |
 
 ---
 
-## Português
-
-### 🎯 Visão Geral
-
-**Feature Store Architecture** é uma aplicação Python de nível profissional que demonstra práticas modernas de engenharia de software, incluindo arquitetura limpa, testes abrangentes, implantação containerizada e prontidão para CI/CD.
-
-A base de código compreende **2,583 linhas** de código-fonte organizadas em **11 módulos**, seguindo as melhores práticas do setor para manutenibilidade, escalabilidade e qualidade de código.
-
-### ✨ Funcionalidades Principais
-
-- **🏗️ Object-Oriented**: 16 core classes with clean architecture
-- **📐 Clean Architecture**: Modular design with clear separation of concerns
-- **🧪 Test Coverage**: Unit and integration tests for reliability
-- **📚 Documentation**: Comprehensive inline documentation and examples
-- **🔧 Configuration**: Environment-based configuration management
-
-### 🏗️ Arquitetura
-
-```mermaid
-graph TB
-    subgraph Client["🖥️ Client Layer"]
-        A[Web Client]
-        B[API Documentation]
-    end
-    
-    subgraph API["⚡ API Layer"]
-        C[Middleware Pipeline]
-        D[Route Handlers]
-        E[Business Logic]
-    end
-    
-    subgraph Data["💾 Data Layer"]
-        F[(Primary Database)]
-        G[Cache]
-    end
-    
-    A --> C
-    B --> C
-    C --> D --> E
-    E --> F
-    E --> G
-    
-    style Client fill:#e1f5fe
-    style API fill:#f3e5f5
-    style Data fill:#fff3e0
-```
-
-### 🚀 Início Rápido
-
-#### Prerequisites
-
-- Python 3.12+
-- pip (Python package manager)
-
-#### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/galafis/feature-store-architecture.git
-cd feature-store-architecture
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-#### Running
-
-```bash
-# Run the application
-python src/main.py
-```
-
-### 🧪 Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage report
-pytest --cov --cov-report=html
-
-# Run specific test module
-pytest tests/test_main.py -v
-
-# Run with detailed output
-pytest -v --tb=short
-```
-
-### 📁 Estrutura do Projeto
-
-```
-feature-store-architecture/
-├── config/        # Configuration
-├── data/
-│   └── examples/
-├── diagrams/
-├── docs/          # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── BEST_PRACTICES.md
-│   ├── GETTING_STARTED.md
-│   └── QUICK_REFERENCE.md
-├── examples/
-│   ├── README.md
-│   ├── advanced_transformations.py
-│   ├── api_usage.py
-│   └── basic_usage.py
-├── images/
-├── src/          # Source code
-│   ├── __init__.py
-│   ├── feature_serving_api.py
-│   ├── feature_store.py
-│   └── real_world_examples.py
-├── tests/         # Test suite
-│   ├── test_api.py
-│   ├── test_feature_store.py
-│   ├── test_integration.py
-│   └── test_real_world_examples.py
-├── CHANGELOG.md
-├── LICENSE
-├── README.md
-└── requirements.txt
-```
-
-### 🛠️ Stack Tecnológica
-
-| Tecnologia | Descrição | Papel |
-|------------|-----------|-------|
-| **Python** | Core Language | Primary |
-| **Flask** | Lightweight web framework | Framework |
-| **NumPy** | Numerical computing | Framework |
-| **Pandas** | Data manipulation library | Framework |
-| **Redis** | In-memory data store | Framework |
-
-### 🤝 Contribuindo
-
-Contribuições são bem-vindas! Sinta-se à vontade para enviar um Pull Request.
-
-### 📄 Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
-### 👤 Autor
+### Autor / Author
 
 **Gabriel Demetrios Lafis**
 - GitHub: [@galafis](https://github.com/galafis)
 - LinkedIn: [Gabriel Demetrios Lafis](https://linkedin.com/in/gabriel-demetrios-lafis)
+
+### Licenca / License
+
+MIT License - veja [LICENSE](LICENSE) para detalhes / see [LICENSE](LICENSE) for details.

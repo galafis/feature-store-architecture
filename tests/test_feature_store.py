@@ -10,9 +10,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import json
-import pandas as pd
 import redis
-import pyarrow.parquet as pq
 
 # Adicionar o diretório src ao path para importar os módulos
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))

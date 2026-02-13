@@ -13,8 +13,6 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
 from enum import Enum
-import hashlib
-import json
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -225,7 +223,7 @@ class FeatureStore:
         # Armazenamento Online (Redis)
         if self.online_store:
             online_key = f"{group_name}:{entity_id}"
-            self.online_store.hmset(online_key, computed_features)
+            self.online_store.hset(online_key, mapping=computed_features)
 
         # Armazenamento Offline (Parquet)
         # Adicionar coluna de data antes de criar a tabela
@@ -275,7 +273,7 @@ class FeatureStore:
         if timestamp:
             if isinstance(timestamp, str):
                 timestamp = datetime.fromisoformat(timestamp)
-            del source_data["timestamp"]
+            source_data = {k: v for k, v in source_data.items() if k != "timestamp"}
         else:
             timestamp = datetime.now()
         
