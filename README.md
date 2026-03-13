@@ -4,6 +4,7 @@
 [![Flask](https://img.shields.io/badge/Flask-2.3+-000000.svg)](https://flask.palletsprojects.com/)
 [![Redis](https://img.shields.io/badge/Redis-4.5+-DC382D.svg)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](Dockerfile)
 
 [English](#english) | [Portugues](#portugues)
 
