@@ -43,11 +43,18 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Environment variables
+.env
+.env.local
+.env.production
+
 # Feature Store specific
 offline_store/
 test_offline_store/
+test_offline_store_api/
 test_offline_store_integration/
 data/offline_store/
+data/examples/
 *.parquet
 
 # OS
